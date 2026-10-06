@@ -65,11 +65,34 @@ html.wedding-root body {
   appearance: none;
   -webkit-appearance: none;
   cursor: pointer;
+  z-index: 6;
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+/* Invisible expanded hit area — original positions unchanged, only easier to tap */
+.wedding-envelope-layer .envelope-open-hitbox {
+  position: absolute;
+  top: 320px;
+  left: 220px;
+  width: 210px;
+  height: 180px;
+  z-index: 8;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+.wedding-envelope-layer #w-0j9jce4g {
+  cursor: pointer;
+  z-index: 4;
 }
 
 .wedding-envelope-layer #w-72ewtyw1 {
   cursor: pointer;
-  z-index: 5;
+  z-index: 7;
 }
 
 .wedding-invite-layer {
@@ -127,6 +150,15 @@ html.wedding-root body {
   animation-duration: 2.8s !important;
   -webkit-animation-delay: 1.15s !important;
   animation-delay: 1.15s !important;
+}
+
+/* Trim empty white space below HAPPY WEDDING banner (section was 482px) */
+.wedding-invite-layer #w-o94okgr4 {
+  height: 401px !important;
+}
+
+.wedding-invite-layer #w-8wddtho6 {
+  display: none !important;
 }
 
 /* ===== Exact clone of original #loading-gate (e.ewedding.site/tranghieu) ===== */

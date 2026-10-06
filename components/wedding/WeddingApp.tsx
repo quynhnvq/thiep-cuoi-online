@@ -6,7 +6,7 @@ import { guestFromSearchParams } from "@/lib/wedding/guest";
 import { MusicPlayer, type MusicPlayerHandle } from "./MusicPlayer";
 import "./wedding-shell.css";
 
-const COUNTDOWN_END = new Date("2026-10-17T16:00:00").getTime();
+const COUNTDOWN_END = new Date("2026-10-18T11:00:00").getTime();
 
 type Props = {
   envelopeHtml: string;
@@ -188,13 +188,29 @@ export function WeddingApp({ envelopeHtml, inviteHtml }: Props) {
   useEffect(() => {
     const root = envelopeRef.current;
     if (!root || phase !== "envelope") return;
+
+    // Transparent hitbox over hand + seal + text (original positions unchanged)
+    let hitbox = root.querySelector<HTMLElement>(".envelope-open-hitbox");
+    if (!hitbox) {
+      hitbox = document.createElement("button");
+      hitbox.type = "button";
+      hitbox.className = "envelope-open-hitbox";
+      hitbox.setAttribute("data-open-invite", "");
+      hitbox.setAttribute("aria-label", "Ấn để mở thiệp");
+      const stage = root.querySelector(".section-container") || root;
+      stage.appendChild(hitbox);
+    }
+
     const triggers = root.querySelectorAll("[data-open-invite]");
     const handler = (e: Event) => {
       e.preventDefault();
       openInvite();
     };
     triggers.forEach((el) => el.addEventListener("click", handler));
-    return () => triggers.forEach((el) => el.removeEventListener("click", handler));
+    return () => {
+      triggers.forEach((el) => el.removeEventListener("click", handler));
+      hitbox?.remove();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, envelopeWithGuest]);
 
