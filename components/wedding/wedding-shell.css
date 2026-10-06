@@ -26,10 +26,41 @@ html.wedding-root body {
   overflow: visible;
 }
 
+/* Cover phase: lock to the small viewport (svh) so iOS chrome can't create scroll */
+html.wedding-root.wedding-envelope {
+  height: 100%;
+  height: 100svh;
+  height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+html.wedding-root.wedding-envelope body {
+  height: 100%;
+  height: 100svh;
+  height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+  /* Paper-adjacent fill so letterboxing isn't a harsh white strip */
+  background: #f3efe6;
+}
+
 .wedding-app {
   min-height: 100vh;
   background: #fff;
   --wedding-brown: rgba(109, 88, 61, 1);
+}
+
+html.wedding-root.wedding-envelope .wedding-app {
+  min-height: 0;
+  height: 100%;
+  height: 100svh;
+  height: 100dvh;
+  overflow: hidden;
+  background: #f3efe6;
+  touch-action: none;
 }
 
 .wedding-stage {
@@ -37,6 +68,16 @@ html.wedding-root body {
   max-width: 420px;
   margin: 0 auto;
   position: relative;
+}
+
+html.wedding-root.wedding-envelope .wedding-stage {
+  max-width: none;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
 .wedding-envelope-layer,
@@ -52,10 +93,28 @@ html.wedding-root body {
   background: #fff;
 }
 
+html.wedding-root.wedding-envelope .wedding-envelope-layer {
+  max-width: none;
+  width: calc(420px * var(--envelope-scale, 1));
+  height: calc(784px * var(--envelope-scale, 1));
+  margin: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
 .wedding-envelope-layer .pageview {
   max-width: 420px;
   margin: 0 auto;
   overflow: hidden;
+}
+
+html.wedding-root.wedding-envelope .wedding-envelope-layer .pageview {
+  width: 420px;
+  height: 784px;
+  max-width: none;
+  margin: 0;
+  transform: scale(var(--envelope-scale, 1));
+  transform-origin: top left;
 }
 
 .wedding-envelope-layer #w-72orm696 {
@@ -71,18 +130,21 @@ html.wedding-root body {
   color: inherit;
 }
 
-/* Invisible expanded hit area — original positions unchanged, only easier to tap */
+/* Hitbox sits on the scaled envelope-layer (percent of visible card), not inside
+   the transformed pageview — more reliable for iOS taps. */
 .wedding-envelope-layer .envelope-open-hitbox {
   position: absolute;
-  top: 320px;
-  left: 220px;
-  width: 210px;
-  height: 180px;
-  z-index: 8;
+  top: 40.8%;
+  left: 52.4%;
+  width: 50%;
+  height: 23%;
+  z-index: 20;
   cursor: pointer;
   background: transparent;
   border: 0;
   padding: 0;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .wedding-envelope-layer #w-0j9jce4g {

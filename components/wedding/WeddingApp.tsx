@@ -44,6 +44,38 @@ export function WeddingApp({ envelopeHtml, inviteHtml }: Props) {
     return () => document.documentElement.classList.remove("wedding-root");
   }, [guestName]);
 
+  // Envelope is a fixed 420×784 canvas — scale to fit the visible viewport and
+  // lock scroll so mobile Safari doesn't show a white gap under min-height:100vh.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (phase !== "envelope") {
+      root.classList.remove("wedding-envelope");
+      root.style.removeProperty("--envelope-scale");
+      return;
+    }
+
+    root.classList.add("wedding-envelope");
+
+    const fit = () => {
+      const vw = window.visualViewport?.width ?? window.innerWidth;
+      const vh = window.visualViewport?.height ?? window.innerHeight;
+      // Never upscale past the designed 420×784 canvas (desktop stays 1:1,
+      // centered). Only shrink on narrow/short viewports.
+      const scale = Math.min(1, vw / 420, vh / 784);
+      root.style.setProperty("--envelope-scale", String(scale));
+    };
+
+    fit();
+    window.addEventListener("resize", fit);
+    window.visualViewport?.addEventListener("resize", fit);
+    return () => {
+      root.classList.remove("wedding-envelope");
+      root.style.removeProperty("--envelope-scale");
+      window.removeEventListener("resize", fit);
+      window.visualViewport?.removeEventListener("resize", fit);
+    };
+  }, [phase]);
+
   // Countdown updater once invite is shown
   useEffect(() => {
     if (phase !== "invite") return;
@@ -168,8 +200,11 @@ export function WeddingApp({ envelopeHtml, inviteHtml }: Props) {
     };
   }, [phase, guestName]);
 
+  const openingRef = useRef(false);
+
   const openInvite = () => {
-    if (phase !== "envelope") return;
+    if (phase !== "envelope" || openingRef.current) return;
+    openingRef.current = true;
     setPhase("opening");
     void musicRef.current?.play();
 
@@ -185,31 +220,20 @@ export function WeddingApp({ envelopeHtml, inviteHtml }: Props) {
     window.setTimeout(() => setGateState("finished"), 5000);
   };
 
+  // Wire original seal / hand / label taps
   useEffect(() => {
     const root = envelopeRef.current;
     if (!root || phase !== "envelope") return;
 
-    // Transparent hitbox over hand + seal + text (original positions unchanged)
-    let hitbox = root.querySelector<HTMLButtonElement>(".envelope-open-hitbox");
-    if (!hitbox) {
-      hitbox = document.createElement("button");
-      hitbox.type = "button";
-      hitbox.className = "envelope-open-hitbox";
-      hitbox.setAttribute("data-open-invite", "");
-      hitbox.setAttribute("aria-label", "Ấn để mở thiệp");
-      const stage = root.querySelector(".section-container") || root;
-      stage.appendChild(hitbox);
-    }
-
-    const triggers = root.querySelectorAll("[data-open-invite]");
     const handler = (e: Event) => {
       e.preventDefault();
       openInvite();
     };
+
+    const triggers = root.querySelectorAll("[data-open-invite]");
     triggers.forEach((el) => el.addEventListener("click", handler));
     return () => {
       triggers.forEach((el) => el.removeEventListener("click", handler));
-      hitbox?.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, envelopeWithGuest]);
@@ -218,11 +242,15 @@ export function WeddingApp({ envelopeHtml, inviteHtml }: Props) {
     <div className="wedding-app">
       <div className="wedding-stage">
         {showEnvelope && (
-          <div
-            ref={envelopeRef}
-            className="wedding-envelope-layer"
-            dangerouslySetInnerHTML={{ __html: envelopeWithGuest }}
-          />
+          <div ref={envelopeRef} className="wedding-envelope-layer">
+            <div dangerouslySetInnerHTML={{ __html: envelopeWithGuest }} />
+            <button
+              type="button"
+              className="envelope-open-hitbox"
+              aria-label="Ấn để mở thiệp"
+              onClick={openInvite}
+            />
+          </div>
         )}
 
         {(phase === "invite" || inviteVisible) && (
