@@ -73,26 +73,63 @@ export function WeddingApp({ envelopeHtml, inviteHtml }: Props) {
     return () => window.clearInterval(id);
   }, [phase]);
 
-  // Entrance animations + form UI handler
+  // Scroll-triggered entrance animations — match e.ewedding.site webcake:
+  // IntersectionObserver({ threshold: 0, rootMargin: `0px 0px ${vh/10}px 0px` })
+  // Positive bottom margin expands the hit area so nearby elements (e.g. the two
+  // polaroids ~77px apart) intersect in the same frame and animate together.
+  // Hero (#w-4hid1bt8) waits longer after the gate opens so names stay readable.
   useEffect(() => {
     if (phase !== "invite") return;
+    if (gateState === "closed") return;
     const root = inviteRef.current;
     if (!root) return;
 
-    const animated = root.querySelectorAll(".is-animation, .animation");
-    animated.forEach((el) => el.classList.add("animation"));
+    const heroSection = root.querySelector("#w-4hid1bt8");
+    /** Delay after gate opens before hero text starts animating */
+    const HERO_REVEAL_MS = 1400;
+    const pendingTimers: number[] = [];
+
+    const activate = (el: Element) => {
+      el.classList.add("animation");
+      el.classList.remove("is-animation", "hidden-animation");
+    };
+
+    const activateMaybeDelayed = (el: Element) => {
+      if (heroSection?.contains(el)) {
+        const id = window.setTimeout(() => activate(el), HERO_REVEAL_MS);
+        pendingTimers.push(id);
+        return;
+      }
+      activate(el);
+    };
 
     const io = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
-          if (entry.isIntersecting) {
-            entry.target.classList.add("animation");
-          }
+          if (!entry.isIntersecting) continue;
+          io.unobserve(entry.target);
+          activateMaybeDelayed(entry.target);
         }
       },
-      { threshold: 0.15 },
+      {
+        threshold: 0,
+        rootMargin: `0px 0px ${Math.round(window.innerHeight / 10)}px 0px`,
+      },
     );
+
     root.querySelectorAll(".is-animation").forEach((el) => io.observe(el));
+
+    return () => {
+      io.disconnect();
+      pendingTimers.forEach((id) => window.clearTimeout(id));
+    };
+  }, [phase, gateState]);
+
+  // Form UI handler
+  useEffect(() => {
+    if (phase !== "invite") return;
+    const root = inviteRef.current;
+    if (!root) return;
 
     const form = root.querySelector<HTMLFormElement>("#npnmha4s");
     const nameInput = root.querySelector<HTMLInputElement>("input[name='full_name']");
@@ -125,7 +162,6 @@ export function WeddingApp({ envelopeHtml, inviteHtml }: Props) {
     select?.addEventListener("change", onSelect);
 
     return () => {
-      io.disconnect();
       form?.removeEventListener("submit", onSubmit);
       fakeBtn?.removeEventListener("click", onFakeClick);
       select?.removeEventListener("change", onSelect);

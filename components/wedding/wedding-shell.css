@@ -1,11 +1,29 @@
 /* Shell + open-envelope transition (page layout CSS lives in /wedding/css/*) */
 
-html.wedding-root,
+/*
+  Only lock horizontal overflow on html — NOT on body.
+  Setting overflow-x:hidden on both forces overflow-y:auto on both
+  (CSS overflow quirk), which creates double scrollbars and flaky wheel scroll.
+*/
+html.wedding-root {
+  margin: 0;
+  padding: 0;
+  background: #fff;
+  /* Grow with content so the window scrolls once (not a nested 100%-height port) */
+  height: auto;
+  min-height: 100%;
+  overflow-x: hidden;
+}
+
 html.wedding-root body {
   margin: 0;
   padding: 0;
   background: #fff;
-  overflow-x: hidden;
+  height: auto;
+  min-height: 100%;
+  /* Override layout.tsx flex + never become a second scrollport */
+  display: block;
+  overflow: visible;
 }
 
 .wedding-app {
@@ -62,10 +80,53 @@ html.wedding-root body {
   display: block;
 }
 
+/* Match original e.ewedding.site: .pageview{overflow:hidden} clips floral decor */
 .wedding-invite-layer .pageview {
-  overflow: visible;
+  overflow: hidden;
   max-width: 420px;
   margin: 0 auto;
+}
+
+/* Apply from-keyframe before paint so scroll reveals don't flash at rest */
+.wedding-invite-layer .animation .text-block-css,
+.wedding-invite-layer .animation .image-block-css,
+.wedding-invite-layer .animation .button-css,
+.wedding-invite-layer .animation .countdown-wrapper {
+  -webkit-animation-fill-mode: both;
+  animation-fill-mode: both;
+}
+
+/* Hero texts: hide until reveal, then slower staggered entrance after gate opens */
+.wedding-invite-layer #w-4hid1bt8 .is-animation .text-block-css {
+  opacity: 0;
+}
+
+.wedding-invite-layer #w-x05nf8xy.animation .text-block-css {
+  -webkit-animation-duration: 2.8s !important;
+  animation-duration: 2.8s !important;
+  -webkit-animation-delay: 0s !important;
+  animation-delay: 0s !important;
+}
+
+.wedding-invite-layer #w-lp37pyxw.animation .text-block-css {
+  -webkit-animation-duration: 3s !important;
+  animation-duration: 3s !important;
+  -webkit-animation-delay: 0.35s !important;
+  animation-delay: 0.35s !important;
+}
+
+.wedding-invite-layer #w-4onqz968.animation .text-block-css {
+  -webkit-animation-duration: 3.2s !important;
+  animation-duration: 3.2s !important;
+  -webkit-animation-delay: 0.7s !important;
+  animation-delay: 0.7s !important;
+}
+
+.wedding-invite-layer #w-jkdnlfq9.animation .text-block-css {
+  -webkit-animation-duration: 2.8s !important;
+  animation-duration: 2.8s !important;
+  -webkit-animation-delay: 1.15s !important;
+  animation-delay: 1.15s !important;
 }
 
 /* ===== Exact clone of original #loading-gate (e.ewedding.site/tranghieu) ===== */
@@ -73,10 +134,11 @@ html.wedding-root body {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   z-index: 999999;
   overflow: hidden;
+  /* Decorative only — never intercept scroll / clicks */
   pointer-events: none;
 }
 
@@ -101,7 +163,7 @@ html.wedding-root body {
   opacity: 1 !important;
   transition: transform 4.5s cubic-bezier(0.6, 0.5, 0.45, 1);
   will-change: transform;
-  pointer-events: auto;
+  pointer-events: none;
 }
 
 .left-wing {
