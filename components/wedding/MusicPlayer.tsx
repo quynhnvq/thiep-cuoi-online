@@ -2,7 +2,7 @@
 
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 
-const AUDIO_SRC = "/wedding/audio/68a1e98902f7.mp3";
+const AUDIO_SRC = "/wedding/audio/all-about-us.mp3";
 const ICON_SRC = "/wedding/img/52688a59d574.jpg";
 
 export type MusicPlayerHandle = {
