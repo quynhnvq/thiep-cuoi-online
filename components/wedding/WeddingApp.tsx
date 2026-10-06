@@ -44,8 +44,9 @@ export function WeddingApp({ envelopeHtml, inviteHtml }: Props) {
     return () => document.documentElement.classList.remove("wedding-root");
   }, [guestName]);
 
-  // Envelope is a fixed 420×784 canvas — scale to fit the visible viewport and
-  // lock scroll so mobile Safari doesn't show a white gap under min-height:100vh.
+  // Envelope is a fixed 420×784 canvas. On mobile always scale to the full
+  // layout WIDTH (never by height, which leaves side gutters on shorter
+  // phones). On desktop, fit inside the window without upscaling.
   useEffect(() => {
     const root = document.documentElement;
     if (phase !== "envelope") {
@@ -57,11 +58,9 @@ export function WeddingApp({ envelopeHtml, inviteHtml }: Props) {
     root.classList.add("wedding-envelope");
 
     const fit = () => {
-      const vw = window.visualViewport?.width ?? window.innerWidth;
+      const vw = root.clientWidth;
       const vh = window.visualViewport?.height ?? window.innerHeight;
-      // Never upscale past the designed 420×784 canvas (desktop stays 1:1,
-      // centered). Only shrink on narrow/short viewports.
-      const scale = Math.min(1, vw / 420, vh / 784);
+      const scale = vw < 768 ? vw / 420 : Math.min(1, vw / 420, vh / 784);
       root.style.setProperty("--envelope-scale", String(scale));
     };
 
@@ -75,6 +74,52 @@ export function WeddingApp({ envelopeHtml, inviteHtml }: Props) {
       window.visualViewport?.removeEventListener("resize", fit);
     };
   }, [phase]);
+
+  // Invite is a fixed 420px layout — on mobile scale it to the device width so
+  // the hero and every section are edge-to-edge.
+  useEffect(() => {
+    if (phase !== "invite" && !inviteVisible) return;
+    const root = document.documentElement;
+    const layer = inviteRef.current;
+    const pageview = layer?.querySelector<HTMLElement>(".pageview") ?? null;
+
+    const reset = () => {
+      root.classList.remove("wedding-fullbleed");
+      root.style.removeProperty("--invite-scale");
+      layer?.style.removeProperty("width");
+      layer?.style.removeProperty("height");
+    };
+
+    const fit = () => {
+      const vw = root.clientWidth;
+      if (vw >= 768 || !layer || !pageview) {
+        reset();
+        return;
+      }
+      const scale = vw / 420;
+      root.classList.add("wedding-fullbleed");
+      root.style.setProperty("--invite-scale", String(scale));
+      // transform doesn't change layout size, so size the layer to the scaled
+      // content; otherwise the page scroll height is wrong.
+      layer.style.width = `${vw}px`;
+      layer.style.height = `${pageview.offsetHeight * scale}px`;
+    };
+
+    fit();
+    const ro =
+      pageview && typeof ResizeObserver !== "undefined"
+        ? new ResizeObserver(fit)
+        : null;
+    if (pageview && ro) ro.observe(pageview);
+    window.addEventListener("resize", fit);
+    window.visualViewport?.addEventListener("resize", fit);
+    return () => {
+      reset();
+      ro?.disconnect();
+      window.removeEventListener("resize", fit);
+      window.visualViewport?.removeEventListener("resize", fit);
+    };
+  }, [phase, inviteVisible]);
 
   // Countdown updater once invite is shown
   useEffect(() => {

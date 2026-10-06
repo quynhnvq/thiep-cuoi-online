@@ -102,6 +102,34 @@ html.wedding-root.wedding-envelope .wedding-envelope-layer {
   background: transparent;
 }
 
+/* Mobile: the 420px canvas is scaled to the full device width (no side gutters).
+   Width is pinned to 100% so sub-pixel rounding of 420*scale can't leave a gap. */
+@media (max-width: 767px) {
+  html.wedding-root.wedding-envelope .wedding-envelope-layer {
+    width: 100%;
+  }
+}
+
+/* Invite on mobile: scale the 420px .pageview to device width */
+html.wedding-fullbleed .wedding-stage {
+  max-width: none;
+  margin: 0;
+}
+
+html.wedding-fullbleed .wedding-invite-layer {
+  max-width: none;
+  margin: 0;
+  overflow: hidden;
+}
+
+html.wedding-fullbleed .wedding-invite-layer .pageview {
+  width: 420px;
+  max-width: none;
+  margin: 0;
+  transform: scale(var(--invite-scale, 1));
+  transform-origin: top left;
+}
+
 .wedding-envelope-layer .pageview {
   max-width: 420px;
   margin: 0 auto;

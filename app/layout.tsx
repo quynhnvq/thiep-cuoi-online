@@ -33,7 +33,9 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="vi" className="h-full">
+    // suppressHydrationWarning: browsers/extensions (e.g. __gcrremoteframetoken)
+    // inject attributes onto <html> before React hydrates.
+    <html lang="vi" className="h-full" suppressHydrationWarning>
       <body className="min-h-full flex flex-col">
         <link rel="stylesheet" href="/wedding/css/animate.css" />
         <link rel="stylesheet" href="/wedding/css/envelope.css" />
