@@ -190,7 +190,7 @@ export function WeddingApp({ envelopeHtml, inviteHtml }: Props) {
     if (!root || phase !== "envelope") return;
 
     // Transparent hitbox over hand + seal + text (original positions unchanged)
-    let hitbox = root.querySelector<HTMLElement>(".envelope-open-hitbox");
+    let hitbox = root.querySelector<HTMLButtonElement>(".envelope-open-hitbox");
     if (!hitbox) {
       hitbox = document.createElement("button");
       hitbox.type = "button";

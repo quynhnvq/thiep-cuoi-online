@@ -110,6 +110,15 @@ html.wedding-root body {
   margin: 0 auto;
 }
 
+/*
+  main.css sets `will-change: filter` on every .image-block-css, which forces a
+  separate GPU layer per image even though no filter is ever animated.
+  Animations here only use transform/opacity, which the browser promotes on demand.
+*/
+.wedding-app .image-block-css {
+  will-change: auto;
+}
+
 /* Apply from-keyframe before paint so scroll reveals don't flash at rest */
 .wedding-invite-layer .animation .text-block-css,
 .wedding-invite-layer .animation .image-block-css,
