@@ -37,10 +37,29 @@ function wishTickerItemHtml(wish: WeddingWish) {
   return `<div class="wish-ticker-item"><strong>${name}:</strong> ${message}</div>`;
 }
 
-function renderWishTicker(
-  root: HTMLElement,
-  wishes: WeddingWish[],
-) {
+function wishSignature(wishes: WeddingWish[]) {
+  return wishes.map((wish) => wish.id).join("|");
+}
+
+/** Merge poll results: keep current order, append only new wishes, drop removed ones. */
+function mergeWishList(
+  current: WeddingWish[],
+  incoming: WeddingWish[],
+): { next: WeddingWish[]; changed: boolean } {
+  if (current.length === 0) {
+    return { next: incoming, changed: incoming.length > 0 };
+  }
+
+  const incomingById = new Map(incoming.map((wish) => [wish.id, wish]));
+  const currentIds = new Set(current.map((wish) => wish.id));
+  const kept = current.filter((wish) => incomingById.has(wish.id));
+  const newcomers = incoming.filter((wish) => !currentIds.has(wish.id));
+  const next = [...kept, ...newcomers];
+  const changed = wishSignature(next) !== wishSignature(current);
+  return { next, changed };
+}
+
+function renderWishTicker(root: HTMLElement, wishes: WeddingWish[]) {
   const ticker = root.querySelector<HTMLElement>("#wedding-wish-ticker");
   const viewport = root.querySelector<HTMLElement>(".wish-ticker-viewport");
   const track = root.querySelector<HTMLElement>("[data-wish-track]");
@@ -49,7 +68,7 @@ function renderWishTicker(
   if (wishes.length === 0) {
     track.innerHTML = "";
     track.classList.remove("is-scrolling");
-    track.style.animationDuration = "";
+    track.style.removeProperty("animation");
     track.style.removeProperty("--wish-scroll-distance");
     ticker.classList.add("is-empty");
     return;
@@ -58,6 +77,7 @@ function renderWishTicker(
   const itemsHtml = wishes.map(wishTickerItemHtml).join("");
   ticker.classList.remove("is-empty");
   track.classList.remove("is-scrolling");
+  track.style.removeProperty("animation");
   track.innerHTML = `<div class="wish-ticker-group" data-wish-group>${itemsHtml}</div>`;
 
   const group = track.querySelector<HTMLElement>("[data-wish-group]");
@@ -74,8 +94,11 @@ function renderWishTicker(
   const cycleHeight = group.offsetHeight;
   track.appendChild(group.cloneNode(true));
   track.style.setProperty("--wish-scroll-distance", `${cycleHeight}px`);
-  // Constant pixel speed so loop stays smooth regardless of list length
-  track.style.animationDuration = `${Math.max(4, cycleHeight / 55)}s`;
+
+  const durationSec = Math.max(4, cycleHeight / 55);
+  // Full shorthand so duration isn't lost when restarting the animation
+  void track.offsetHeight;
+  track.style.animation = `wish-ticker-scroll ${durationSec}s linear infinite`;
   track.classList.add("is-scrolling");
 }
 
@@ -275,17 +298,70 @@ export function WeddingApp({ envelopeHtml, inviteHtml }: Props) {
     if (!root) return;
 
     let cancelled = false;
+    let displayedWishes: WeddingWish[] = [];
+    let pendingWishes: WeddingWish[] | null = null;
+    let waitingForLoop = false;
+    let loopListener: (() => void) | null = null;
+
+    const trackEl = () =>
+      root.querySelector<HTMLElement>("[data-wish-track]");
+
+    const applyDisplayed = (wishes: WeddingWish[]) => {
+      displayedWishes = wishes;
+      renderWishTicker(root, wishes);
+    };
+
+    const flushPendingAtLoop = () => {
+      waitingForLoop = false;
+      loopListener = null;
+      if (cancelled || !pendingWishes) return;
+      const next = pendingWishes;
+      pendingWishes = null;
+      if (wishSignature(next) === wishSignature(displayedWishes)) return;
+      applyDisplayed(next);
+    };
+
+    const scheduleDisplay = (wishes: WeddingWish[]) => {
+      if (wishSignature(wishes) === wishSignature(displayedWishes)) return;
+
+      const track = trackEl();
+      const canDefer =
+        Boolean(track?.classList.contains("is-scrolling")) &&
+        displayedWishes.length > 0;
+
+      if (!canDefer) {
+        pendingWishes = null;
+        applyDisplayed(wishes);
+        return;
+      }
+
+      // Swap only when a seamless loop finishes — no mid-scroll jump
+      pendingWishes = wishes;
+      if (waitingForLoop || !track) return;
+      waitingForLoop = true;
+      loopListener = flushPendingAtLoop;
+      track.addEventListener("animationiteration", flushPendingAtLoop, {
+        once: true,
+      });
+    };
 
     const refreshTicker = () =>
       fetchPublicWeddingWishes()
-        .then((wishes) => {
-          if (!cancelled) renderWishTicker(root, wishes);
+        .then((incoming) => {
+          if (cancelled) return;
+          const base = pendingWishes ?? displayedWishes;
+          const { next, changed } = mergeWishList(base, incoming);
+          if (!changed) return;
+          scheduleDisplay(next);
         })
         .catch(() => {
-          if (!cancelled) renderWishTicker(root, []);
+          // Keep current list on transient fetch errors
         });
 
     void refreshTicker();
+    const pollId = window.setInterval(() => {
+      void refreshTicker();
+    }, 5000);
 
     const form = root.querySelector<HTMLFormElement>("#npnmha4s");
     const nameInput = root.querySelector<HTMLInputElement>("input[name='full_name']");
@@ -350,6 +426,11 @@ export function WeddingApp({ envelopeHtml, inviteHtml }: Props) {
 
     return () => {
       cancelled = true;
+      window.clearInterval(pollId);
+      const track = trackEl();
+      if (track && loopListener) {
+        track.removeEventListener("animationiteration", loopListener);
+      }
       form?.removeEventListener("submit", onSubmit);
       fakeBtn?.removeEventListener("click", onFakeClick);
     };
