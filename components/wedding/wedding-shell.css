@@ -470,6 +470,16 @@ html.wedding-root.wedding-envelope .wedding-envelope-layer .pageview {
   }
 }
 
+/*
+  iOS Safari zooms focused inputs when computed font-size < 16px.
+  Keep controls at 16px to prevent viewport zoom on mobile.
+*/
+#npnmha4s input,
+#npnmha4s textarea,
+#npnmha4s select {
+  font-size: 16px !important;
+}
+
 /* Attendance radios (replaces dropdown in the wish form) */
 #w-kb774q8m .attendance-radios {
   display: flex;
@@ -477,7 +487,7 @@ html.wedding-root.wedding-envelope .wedding-envelope-layer .pageview {
   gap: 4px;
   color: rgba(109, 88, 61, 1);
   font-family: Taviraj, serif;
-  font-size: 12px;
+  font-size: 16px;
   line-height: 1.3;
 }
 
