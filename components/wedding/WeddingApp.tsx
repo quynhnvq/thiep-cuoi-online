@@ -3,6 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { guestFromSearchParams } from "@/lib/wedding/guest";
+import {
+  createWeddingWish,
+  fetchPublicWeddingWishes,
+  type WeddingWish,
+} from "@/lib/wedding/wishes";
 import { MusicPlayer, type MusicPlayerHandle } from "./MusicPlayer";
 import "./wedding-shell.css";
 
@@ -17,6 +22,63 @@ function pad(n: number) {
   return String(Math.max(0, n)).padStart(2, "0");
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function wishTickerItemHtml(wish: WeddingWish) {
+  const name = escapeHtml(wish.name?.trim() || "Quý Khách");
+  const message = escapeHtml(wish.message?.trim() || "");
+  return `<div class="wish-ticker-item"><strong>${name}:</strong> ${message}</div>`;
+}
+
+function renderWishTicker(
+  root: HTMLElement,
+  wishes: WeddingWish[],
+) {
+  const ticker = root.querySelector<HTMLElement>("#wedding-wish-ticker");
+  const viewport = root.querySelector<HTMLElement>(".wish-ticker-viewport");
+  const track = root.querySelector<HTMLElement>("[data-wish-track]");
+  if (!ticker || !track) return;
+
+  if (wishes.length === 0) {
+    track.innerHTML = "";
+    track.classList.remove("is-scrolling");
+    track.style.animationDuration = "";
+    track.style.removeProperty("--wish-scroll-distance");
+    ticker.classList.add("is-empty");
+    return;
+  }
+
+  const itemsHtml = wishes.map(wishTickerItemHtml).join("");
+  ticker.classList.remove("is-empty");
+  track.classList.remove("is-scrolling");
+  track.innerHTML = `<div class="wish-ticker-group" data-wish-group>${itemsHtml}</div>`;
+
+  const group = track.querySelector<HTMLElement>("[data-wish-group]");
+  if (!group) return;
+
+  // Fill until one cycle is at least as tall as the viewport — avoids empty gap on loop
+  const minHeight = Math.max(viewport?.clientHeight ?? 0, ticker.clientHeight, 1);
+  let guard = 0;
+  while (group.offsetHeight < minHeight && guard < 24) {
+    group.insertAdjacentHTML("beforeend", itemsHtml);
+    guard += 1;
+  }
+
+  const cycleHeight = group.offsetHeight;
+  track.appendChild(group.cloneNode(true));
+  track.style.setProperty("--wish-scroll-distance", `${cycleHeight}px`);
+  // Constant pixel speed so loop stays smooth regardless of list length
+  track.style.animationDuration = `${Math.max(4, cycleHeight / 55)}s`;
+  track.classList.add("is-scrolling");
+}
+
 export function WeddingApp({ envelopeHtml, inviteHtml }: Props) {
   const searchParams = useSearchParams();
   const guestName = guestFromSearchParams(searchParams);
@@ -26,11 +88,15 @@ export function WeddingApp({ envelopeHtml, inviteHtml }: Props) {
   const [inviteVisible, setInviteVisible] = useState(false);
   /** loading-gate: null | "closed" | "open" | "finished" — mirrors original tranghieu */
   const [gateState, setGateState] = useState<"closed" | "open" | "finished" | null>(null);
-  const [toast, setToast] = useState(false);
+  const [toast, setToast] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
   const envelopeRef = useRef<HTMLDivElement>(null);
   const inviteRef = useRef<HTMLDivElement>(null);
   const musicRef = useRef<MusicPlayerHandle>(null);
+  const submittingWishRef = useRef(false);
 
   // Inject guest name into envelope markup
   const envelopeWithGuest = envelopeHtml.replace(
@@ -202,25 +268,76 @@ export function WeddingApp({ envelopeHtml, inviteHtml }: Props) {
     };
   }, [phase, gateState]);
 
-  // Form UI handler
+  // Wish ticker + form submit
   useEffect(() => {
     if (phase !== "invite") return;
     const root = inviteRef.current;
     if (!root) return;
 
+    let cancelled = false;
+
+    const refreshTicker = () =>
+      fetchPublicWeddingWishes()
+        .then((wishes) => {
+          if (!cancelled) renderWishTicker(root, wishes);
+        })
+        .catch(() => {
+          if (!cancelled) renderWishTicker(root, []);
+        });
+
+    void refreshTicker();
+
     const form = root.querySelector<HTMLFormElement>("#npnmha4s");
     const nameInput = root.querySelector<HTMLInputElement>("input[name='full_name']");
-    if (nameInput && (!nameInput.value || nameInput.value === "Quý Khách")) {
-      // show decoded guest name in form (unescape HTML entities for input value)
-      const tmp = document.createElement("textarea");
-      tmp.innerHTML = guestName;
-      nameInput.value = tmp.value;
-    }
+    // Keep name empty; API defaults blank names to "Quý Khách"
+    if (nameInput) nameInput.value = "";
 
     const onSubmit = (e: Event) => {
       e.preventDefault();
-      setToast(true);
-      window.setTimeout(() => setToast(false), 3500);
+      if (!form || submittingWishRef.current) return;
+
+      const formData = new FormData(form);
+      const name = String(formData.get("full_name") || "").trim();
+      const message = String(formData.get("guiloichuc") || "").trim();
+      const willAttendRaw = formData.get("willAttend");
+
+      if (!message || willAttendRaw == null) {
+        setToast({
+          type: "error",
+          message: "Vui lòng nhập lời chúc và xác nhận tham dự.",
+        });
+        window.setTimeout(() => setToast(null), 3500);
+        return;
+      }
+
+      submittingWishRef.current = true;
+      void createWeddingWish({
+        name,
+        message,
+        willAttend: willAttendRaw === "true",
+      })
+        .then(() => {
+          setToast({
+            type: "success",
+            message: "Lời chúc của bạn đã được ghi nhận.",
+          });
+          form.reset();
+          if (nameInput) nameInput.value = "";
+          return refreshTicker();
+        })
+        .catch((error: unknown) => {
+          setToast({
+            type: "error",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Không gửi được lời chúc. Vui lòng thử lại.",
+          });
+        })
+        .finally(() => {
+          submittingWishRef.current = false;
+          window.setTimeout(() => setToast(null), 3500);
+        });
     };
     form?.addEventListener("submit", onSubmit);
 
@@ -231,19 +348,12 @@ export function WeddingApp({ envelopeHtml, inviteHtml }: Props) {
     };
     fakeBtn?.addEventListener("click", onFakeClick);
 
-    // Select styling class when chosen
-    const select = root.querySelector<HTMLSelectElement>("select[name='ban_se_tham_du_chu']");
-    const onSelect = () => {
-      if (select && select.value) select.classList.add("select");
-    };
-    select?.addEventListener("change", onSelect);
-
     return () => {
+      cancelled = true;
       form?.removeEventListener("submit", onSubmit);
       fakeBtn?.removeEventListener("click", onFakeClick);
-      select?.removeEventListener("change", onSelect);
     };
-  }, [phase, guestName]);
+  }, [phase]);
 
   const openingRef = useRef(false);
 
@@ -322,9 +432,12 @@ export function WeddingApp({ envelopeHtml, inviteHtml }: Props) {
       <MusicPlayer ref={musicRef} visible={phase !== "envelope"} />
 
       {toast && (
-        <div className="wedding-toast" role="status">
-          <strong>Cảm ơn bạn!</strong>
-          <p>Lời chúc của bạn đã được ghi nhận. (Form UI — logic gửi sẽ thêm sau.)</p>
+        <div
+          className={`wedding-toast${toast.type === "error" ? " is-error" : ""}`}
+          role="status"
+        >
+          <strong>{toast.type === "error" ? "Có lỗi xảy ra" : "Cảm ơn bạn!"}</strong>
+          <p>{toast.message}</p>
         </div>
       )}
     </div>
