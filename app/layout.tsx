@@ -4,7 +4,7 @@ import "./globals.css";
 const title = "Save The Date – Wedding Day";
 const description =
   "Trân trọng kính mời bạn đến dự buổi lễ thành hôn của Cẩm Linh - Thái Toàn, cùng chia sẻ niềm vui trong ngày trọng đại này";
-const thumbnail = "/wedding/img/thumbnail.jpg";
+const thumbnail = "/wedding/img/thumbnail.webp";
 
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL ??

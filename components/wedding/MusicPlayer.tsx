@@ -3,7 +3,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 
 const AUDIO_SRC = "/wedding/audio/all-about-us.mp3";
-const ICON_SRC = "/wedding/img/52688a59d574.jpg";
+const ICON_SRC = "/wedding/img/52688a59d574.webp";
 
 export type MusicPlayerHandle = {
   play: () => Promise<void>;
