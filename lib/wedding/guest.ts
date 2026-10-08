@@ -1,4 +1,4 @@
-/** Guest name from URL: `?name=Nguyễn Văn A` (preferred) or `?id=` (plain / base64). */
+/** Guest name from URL: `?guest=Nguyễn Văn A`, then `?name=`, then `?id=` (plain / base64). */
 
 function escapeHtml(value: string) {
   return value
@@ -42,8 +42,25 @@ export function decodeGuestParam(raw: string | null | undefined): string {
   return escapeHtml(name);
 }
 
+function decodePlainGuest(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) return "Quý Khách";
+
+  let name = trimmed;
+  try {
+    name = decodeURIComponent(trimmed);
+  } catch {
+    name = trimmed;
+  }
+
+  return escapeHtml(name);
+}
+
 export function guestFromSearchParams(
   params: URLSearchParams | { get: (key: string) => string | null },
 ): string {
+  const guest = params.get("guest");
+  if (guest?.trim()) return decodePlainGuest(guest);
+
   return decodeGuestParam(params.get("name") ?? params.get("id"));
 }

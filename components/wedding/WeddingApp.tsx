@@ -16,6 +16,7 @@ const COUNTDOWN_END = new Date("2026-10-18T11:00:00").getTime();
 type Props = {
   envelopeHtml: string;
   inviteHtml: string;
+  guestName?: string;
 };
 
 function pad(n: number) {
@@ -102,9 +103,12 @@ function renderWishTicker(root: HTMLElement, wishes: WeddingWish[]) {
   track.classList.add("is-scrolling");
 }
 
-export function WeddingApp({ envelopeHtml, inviteHtml }: Props) {
+export function WeddingApp({ envelopeHtml, inviteHtml, guestName: guestNameProp }: Props) {
   const searchParams = useSearchParams();
-  const guestName = guestFromSearchParams(searchParams);
+  const guestLabel = guestNameProp?.trim();
+  const guestName = guestLabel
+    ? escapeHtml(guestLabel)
+    : guestFromSearchParams(searchParams);
 
   const [phase, setPhase] = useState<"envelope" | "opening" | "invite">("envelope");
   const [showEnvelope, setShowEnvelope] = useState(true);
@@ -129,9 +133,9 @@ export function WeddingApp({ envelopeHtml, inviteHtml }: Props) {
 
   useEffect(() => {
     document.documentElement.classList.add("wedding-root");
-    document.title = `Thân mời ${guestName}`;
+    document.title = `Thân mời ${guestLabel || guestName}`;
     return () => document.documentElement.classList.remove("wedding-root");
-  }, [guestName]);
+  }, [guestLabel, guestName]);
 
   // Envelope is a fixed 420×784 canvas. On mobile always scale to the full
   // layout WIDTH (never by height, which leaves side gutters on shorter

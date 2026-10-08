@@ -1,3 +1,5 @@
+import { getWeddingApiBaseUrl, readApiError } from "@/lib/wedding/api";
+
 export type CreateWeddingWishInput = {
   name?: string;
   message: string;
@@ -13,20 +15,21 @@ export type WeddingWish = {
   createdAt?: string;
 };
 
-type PublicWishesResponse = {
+export type UpdateWeddingWishInput = {
+  name?: string;
+  message?: string;
+  willAttend?: boolean;
+  isPublic?: boolean;
+};
+
+type WishesResponse = {
   total: number;
   offset: number;
   limit: number;
   data: WeddingWish[];
 };
 
-function getWeddingApiBaseUrl(): string {
-  const base = process.env.NEXT_PUBLIC_WEDDING_API_URL?.replace(/\/$/, "");
-  if (!base) {
-    throw new Error("Missing NEXT_PUBLIC_WEDDING_API_URL");
-  }
-  return base;
-}
+export type WeddingWishPage = WishesResponse;
 
 export async function fetchPublicWeddingWishes(
   limit = 50,
@@ -40,7 +43,7 @@ export async function fetchPublicWeddingWishes(
     throw new Error("Không tải được danh sách lời chúc.");
   }
 
-  const data = (await response.json()) as PublicWishesResponse;
+  const data = (await response.json()) as WishesResponse;
   return Array.isArray(data.data) ? data.data : [];
 }
 
@@ -62,14 +65,61 @@ export async function createWeddingWish(
   });
 
   if (!response.ok) {
-    let detail = "Không gửi được lời chúc. Vui lòng thử lại.";
-    try {
-      const data = (await response.json()) as { message?: string | string[] };
-      if (typeof data.message === "string") detail = data.message;
-      else if (Array.isArray(data.message)) detail = data.message.join(", ");
-    } catch {
-      // keep default message
-    }
-    throw new Error(detail);
+    throw new Error(
+      await readApiError(response, "Không gửi được lời chúc. Vui lòng thử lại."),
+    );
+  }
+}
+
+export async function fetchAdminWeddingWishes(
+  offset = 0,
+  limit = 20,
+): Promise<WeddingWishPage> {
+  const response = await fetch(
+    `${getWeddingApiBaseUrl()}/wedding/wishes/admin?offset=${offset}&limit=${limit}`,
+    { cache: "no-store" },
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      await readApiError(response, "Không tải được danh sách lời chúc."),
+    );
+  }
+
+  const data = (await response.json()) as WishesResponse;
+  return {
+    total: data.total ?? 0,
+    offset: data.offset ?? offset,
+    limit: data.limit ?? limit,
+    data: Array.isArray(data.data) ? data.data : [],
+  };
+}
+
+export async function updateWeddingWish(
+  id: string,
+  input: UpdateWeddingWishInput,
+): Promise<void> {
+  const response = await fetch(
+    `${getWeddingApiBaseUrl()}/wedding/wishes/${id}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readApiError(response, "Không cập nhật được lời chúc."));
+  }
+}
+
+export async function deleteWeddingWish(id: string): Promise<void> {
+  const response = await fetch(
+    `${getWeddingApiBaseUrl()}/wedding/wishes/${id}`,
+    { method: "DELETE" },
+  );
+
+  if (!response.ok) {
+    throw new Error(await readApiError(response, "Không xóa được lời chúc."));
   }
 }
