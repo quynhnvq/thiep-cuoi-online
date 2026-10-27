@@ -251,6 +251,19 @@ html.wedding-root.wedding-envelope .wedding-envelope-layer .pageview {
   animation-delay: 1.15s !important;
 }
 
+/* Address wraps to 2 lines — give room so it doesn't collide with Đón khách */
+.wedding-invite-layer #w-ajpp5byn {
+  height: 48px !important;
+}
+
+.wedding-invite-layer #w-uuhhohtf {
+  top: 780px !important;
+}
+
+.wedding-invite-layer #w-sfhueghi {
+  top: 824px !important;
+}
+
 /* Trim empty white space below HAPPY WEDDING banner (section was 482px) */
 .wedding-invite-layer #w-o94okgr4 {
   height: 401px !important;
