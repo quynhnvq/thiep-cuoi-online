@@ -11,7 +11,7 @@ import {
 import { MusicPlayer, type MusicPlayerHandle } from "./MusicPlayer";
 import "./wedding-shell.css";
 
-const COUNTDOWN_END = new Date("2026-11-07T17:00:00").getTime();
+const COUNTDOWN_END = new Date("2026-11-07T16:30:00").getTime();
 
 type Props = {
   envelopeHtml: string;
